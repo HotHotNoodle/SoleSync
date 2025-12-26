@@ -1,0 +1,138 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String                 @id @default(cuid())
+  email                 String                 @unique
+  username              String                 @unique
+  avatarUrl             String?
+  createdAt             DateTime               @default(now())
+  
+  sneakers              Sneaker[]
+  achievements          Achievement[]
+  marketplaceListings   MarketplaceListing[]
+  swapRequestsSent      SwapRequest[]          @relation("SwapRequestSender")
+  swapRequestsReceived  SwapRequest[]          @relation("SwapRequestReceiver")
+}
+
+model Sneaker {
+  id                    String                 @id @default(cuid())
+  userId                String
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name                  String
+  brand                 String
+  model                 String
+  size                  String
+  colorway              String?
+  
+  purchaseDate          DateTime?
+  purchasePrice         Float?
+  currentValue          Float?
+  conditionScore        Int                    @default(100) // 0-100
+  
+  imageUrl              String?
+  lastWorn              DateTime?
+  totalWears            Int                    @default(0)
+  
+  authenticationStatus  String                 @default("pending") // pending, authenticated, rejected
+  authenticationScore   Float?                 // 0-100
+  
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  
+  wearLogs              WearLog[]
+  marketplaceListing    MarketplaceListing?
+  maintenanceAlerts     MaintenanceAlert[]
+}
+
+model WearLog {
+  id                    String                 @id @default(cuid())
+  sneakerId             String
+  sneaker               Sneaker                @relation(fields: [sneakerId], references: [id], onDelete: Cascade)
+  
+  wornDate              DateTime               @default(now())
+  location              String?
+  notes                 String?
+  
+  createdAt             DateTime               @default(now())
+}
+
+model MarketplaceListing {
+  id                    String                 @id @default(cuid())
+  sneakerId             String                 @unique
+  sneaker               Sneaker                @relation(fields: [sneakerId], references: [id], onDelete: Cascade)
+  
+  sellerId              String
+  seller                User                   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  
+  listingType           String                 // swap, sell, both
+  price                 Float?
+  
+  locationLat           Float?
+  locationLng           Float?
+  locationName          String?
+  
+  status                String                 @default("active") // active, pending, completed, cancelled
+  
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  
+  swapRequests          SwapRequest[]
+}
+
+model SwapRequest {
+  id                    String                 @id @default(cuid())
+  listingId             String
+  listing               MarketplaceListing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  
+  requesterId           String
+  requester             User                   @relation("SwapRequestSender", fields: [requesterId], references: [id], onDelete: Cascade)
+  
+  receiverId            String
+  receiver              User                   @relation("SwapRequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  
+  status                String                 @default("pending") // pending, accepted, rejected, completed
+  message               String?
+  
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+}
+
+model Achievement {
+  id                    String                 @id @default(cuid())
+  userId                String
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  achievementType       String                 // rotation_master, vintage_collector, etc.
+  title                 String
+  description           String
+  badgeIcon             String
+  
+  unlockedAt            DateTime               @default(now())
+}
+
+model MaintenanceAlert {
+  id                    String                 @id @default(cuid())
+  sneakerId             String
+  sneaker               Sneaker                @relation(fields: [sneakerId], references: [id], onDelete: Cascade)
+  
+  alertType             String                 // cleaning, sole_separation, color_fading, etc.
+  severity              String                 // low, medium, high, critical
+  message               String
+  predictedDate         DateTime?
+  
+  resolved              Boolean                @default(false)
+  
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+}
